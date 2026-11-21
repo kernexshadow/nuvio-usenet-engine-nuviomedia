@@ -17,7 +17,10 @@ package rapidyenc
 #cgo nocallback rapidyenc_encode
 #cgo noescape rapidyenc_encode_ex
 #cgo nocallback rapidyenc_encode_ex
-#cgo darwin LDFLAGS: ${SRCDIR}/librapidyenc_darwin.a -lstdc++
+#cgo darwin,!ios LDFLAGS: ${SRCDIR}/librapidyenc_darwin.a -lstdc++
+// Device and simulator slices need different archives: scripts/build_ios.sh
+// builds them and passes the one for each slice in CGO_LDFLAGS.
+#cgo ios LDFLAGS: -lc++
 #cgo windows,amd64 LDFLAGS: ${SRCDIR}/librapidyenc_windows_amd64.a -lstdc++
 #cgo linux,!android,amd64 LDFLAGS: ${SRCDIR}/librapidyenc_linux_amd64.a -lstdc++
 #cgo linux,!android,arm64 LDFLAGS: ${SRCDIR}/librapidyenc_linux_arm64.a -lstdc++

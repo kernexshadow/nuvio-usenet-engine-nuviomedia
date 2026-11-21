@@ -1,0 +1,48 @@
+name: iOS library
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feat/ios-library]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  xcframework:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          go version
+          cmake --version | head -n 1
+      - name: Build the XCFramework
+        run: bash scripts/build_ios.sh
+      - name: Run the library in an iOS simulator
+        run: |
+          set -euo pipefail
+          sim=build/ios/NuvioUsenet.xcframework/ios-arm64_x86_64-simulator
+          xcrun --sdk iphonesimulator clang -target arm64-apple-ios16.1-simulator -I "$sim/Headers" \
+            tests/ios/smoke.c "$sim/libnuvio_usenet.a" \
+            -framework Security -framework CoreFoundation -lresolv -lc++ -o build/ios/smoke
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for runtime, ds in devices.items() if "iOS" in runtime for d in ds if d["name"].startswith("iPhone")))
+          ')"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl spawn "$udid" "$PWD/build/ios/smoke" "$(mktemp -d)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NuvioUsenet.xcframework
+          path: |
+            build/ios/NuvioUsenet.xcframework.zip
+            build/ios/NuvioUsenet.xcframework.zip.sha256
